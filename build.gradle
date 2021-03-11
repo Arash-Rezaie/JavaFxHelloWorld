@@ -1,0 +1,83 @@
+/*
+There is another style of build.gradle defined for javafx project via plugins,
+I couldn't execute task :run, so I decided to import javafx as dependency instead of plugin
+*/
+
+plugins {
+    id 'java' //adds Java compilation along with testing and bundling capabilities
+    id 'application' //facilitates creating an executable JVM application (Tasks>application>run)
+    id 'org.beryx.jlink' version '2.23.3' //makes executable image of application
+}
+
+def ver = '1.0-SNAPSHOT'
+def desc = 'HelloWorld JavaFX project'
+
+//define project properties
+group 'com.arash'
+version ver
+description desc
+
+//define jdk version
+targetCompatibility = 1.9
+sourceCompatibility = 1.9
+
+//define desired repositories
+repositories {
+    mavenCentral()
+}
+
+//define application structure to be modular
+java {
+    modularity.inferModulePath = true
+}
+
+//javafx is not platform independent, so you have to determine target platform
+def final OS = ['linux', 'mac', 'win']
+def platform = OS[0]
+
+//platform dependent libs
+dependencies {
+    implementation "org.openjfx:javafx-base:15.0.1:${platform}"
+    implementation "org.openjfx:javafx-controls:15.0.1:${platform}"
+    implementation "org.openjfx:javafx-graphics:15.0.1:${platform}"
+    implementation "org.openjfx:javafx-fxml:15.0.1:${platform}"
+}
+
+//declare launcher class variable
+def mainClassName = group + '.Main'
+
+//set application properties
+application {
+    mainModule = 'com.arash'
+    mainClass = mainClassName
+}
+
+//to create single jar artifact, you can use fat-jar (copy all exploded dependencies into artifact root).
+//in case of creating modular app, fat-jar is a mess and it may not work properly because of duplicated file name inside the jar
+task fatJar(type: Jar) {
+    manifest {
+        attributes 'Implementation-Title': desc,
+                'Implementation-Version': ver,
+                'Main-Class': mainClassName
+    }
+    baseName = project.name + '-' + platform
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
+
+//jLink provides more advanced artifact. By this tool, dependencies are copied beside and the whole image is ready to use.
+/*
+Please notice that, if you are willing to provide the artifact for another platform, you must download its specific jdk
+you have to run jLink with option:
+--module-path $TARGET_JDK/jmods
+
+after executing jLink task, {app}/build/image/bin/{app-name} is your image entry point
+* */
+jlink {
+    options = ['--strip-debug', '--compress', '2', '--no-header-files', '--no-man-pages']
+    launcher {
+        name = 'Run_This_File'
+    }
+}
+
+
