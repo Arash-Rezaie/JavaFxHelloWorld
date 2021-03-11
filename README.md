@@ -1,5 +1,5 @@
 # JavaFxHelloWorld
-## A simple javafx project with artifact making feature using gradle.
+#### A simple javafx project with artifact making feature using gradle.
 
-###  jdk 15
-###  gradle 3.8.3
+1. jdk 15
+2. gradle 3.8.3
