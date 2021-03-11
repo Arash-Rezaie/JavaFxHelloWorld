@@ -1,5 +1,5 @@
 /*
-for gradle version 6.5-
+!!this configuration failed in gradle version 6.5+!!
 I couldn't execute task :run in higher versions through plugin, so I imported javafx as dependency
 plugins {
     id 'java'
@@ -15,9 +15,6 @@ javafx {
 
 //------------------------------------------------------------------
 
-/*
-for gradle version 6.6+
-*/
 plugins {
     id 'java' //adds Java compilation along with testing and bundling capabilities
     id 'application' //facilitates creating an executable JVM application (Tasks>application>run)
