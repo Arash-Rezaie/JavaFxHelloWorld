@@ -1,8 +1,23 @@
 /*
-There is another style of build.gradle defined for javafx project via plugins,
-I couldn't execute task :run, so I decided to import javafx as dependency instead of plugin
+for gradle version 6.5-
+I couldn't execute task :run in higher versions through plugin, so I imported javafx as dependency
+plugins {
+    id 'java'
+    id 'application'
+    id 'org.openjfx.javafxplugin' version '0.0.9'
+}
+
+javafx {
+    version = "15.0.1"
+    modules = ['javafx.controls', 'javafx.fxml']
+}
 */
 
+//------------------------------------------------------------------
+
+/*
+for gradle version 6.6+
+*/
 plugins {
     id 'java' //adds Java compilation along with testing and bundling capabilities
     id 'application' //facilitates creating an executable JVM application (Tasks>application>run)
