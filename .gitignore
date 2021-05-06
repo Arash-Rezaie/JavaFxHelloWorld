@@ -27,5 +27,5 @@ hs_err_pid*
 /out
 
 # gralde configuration dir
-.gradle/
+/.gradle
 
