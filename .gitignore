@@ -24,3 +24,8 @@ hs_err_pid*
 
 # artifact directory
 /build
+/out
+
+# gralde configuration dir
+.gradle/
+

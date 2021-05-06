@@ -1,95 +1,167 @@
+import java.nio.file.Files
+import java.nio.file.Paths
+
+// Please read this file
 /*
-!!this configuration failed in gradle version 6.5+!!
-I couldn't execute task :run in higher versions through plugin, so I imported javafx as dependency
-plugins {
-    id 'java'
-    id 'application'
-    id 'org.openjfx.javafxplugin' version '0.0.9'
-}
+There are two approach to import javafx dependencies in this file:
+1. via plugin
+2. via direct dependency
 
-javafx {
-    version = "15.0.1"
-    modules = ['javafx.controls', 'javafx.fxml']
-}
+Also your project could be modular or non-modular.
+If There is a file named "module-info.java", project will become modular
+
+!!You should use only one of theme!!
 */
-
-//------------------------------------------------------------------
-
 plugins {
+    // generic
     id 'java' //adds Java compilation along with testing and bundling capabilities
     id 'application' //facilitates creating an executable JVM application (Tasks>application>run)
-    id 'org.beryx.jlink' version '2.23.3' //makes executable image of application
+
+    // comment if you want to import dependencies directly
+    id "org.openjfx.javafxplugin" version "0.0.10"
+
+    // use below one of below plugins when you want to build by jpackage tool in java 14
+    id "org.beryx.jlink" version "2.23.8" // for modular projects
+    // id 'org.beryx.runtime' version '1.12.4' // for non-modular projects
 }
 
-def ver = '1.0-SNAPSHOT'
-def desc = 'HelloWorld JavaFX project'
+// comment to integrate dependencies directory
+javafx {
+    // uncomment this line to determine a version
+    //version = "16"
+    modules("javafx.controls", "javafx.fxml")
+}
 
-//define project properties
+// project properties
 group 'com.arash'
-version ver
-description desc
+version '1.0-SNAPSHOT'
+description 'HelloWorld JavaFX project'
 
-//define jdk version
+// target version
 targetCompatibility = 1.9
 sourceCompatibility = 1.9
 
-//define desired repositories
+// target file name suffix
+String fileSuffix
+def currentOs = org.gradle.internal.os.OperatingSystem.current()
+
+if (currentOs.windows) {
+    fileSuffix = 'windows'
+} else if (currentOs.linux) {
+    fileSuffix = 'linux'
+} else if (currentOs.macOsX) {
+    fileSuffix = 'macintosh'
+}
+
+application {
+    mainClassName = 'com.arash.Main'
+    applicationName = 'JavaFx Hello World'
+}
+
+// desired repositories
 repositories {
     mavenCentral()
 }
 
-//define application structure to be modular
-java {
-    modularity.inferModulePath = true
-}
-
-//javafx is not platform independent, so you have to determine target platform
-def final OS = ['linux', 'mac', 'win']
-def platform = OS[0]
-
 //platform dependent libs
 dependencies {
-    implementation "org.openjfx:javafx-base:15.0.1:${platform}"
-    implementation "org.openjfx:javafx-controls:15.0.1:${platform}"
-    implementation "org.openjfx:javafx-graphics:15.0.1:${platform}"
-    implementation "org.openjfx:javafx-fxml:15.0.1:${platform}"
+    // uncomment for direct dependency integration
+    // implementation "org.openjfx:javafx-base:16:${fileSuffix}"
+    // implementation "org.openjfx:javafx-controls:16:${fileSuffix}"
+    // implementation "org.openjfx:javafx-graphics:16:${fileSuffix}"
+    // implementation "org.openjfx:javafx-fxml:16:${fileSuffix}"
 }
 
-//declare launcher class variable
-def mainClassName = group + '.Main'
+// determine launcher class
+mainClassName = group + '.Main'
 
-//set application properties
-application {
-    mainModule = 'com.arash'
-    mainClass = mainClassName
-}
-
-//to create single jar artifact, you can use fat-jar (copy all exploded dependencies into artifact root).
-//in case of creating modular app, fat-jar is a mess and it may not work properly because of duplicated file name inside the jar
+// for fat-jar with no structure
+/*
 task fatJar(type: Jar) {
     manifest {
-        attributes 'Implementation-Title': desc,
-                'Implementation-Version': ver,
-                'Main-Class': mainClassName
+        attributes 'Main-Class': mainClassName
     }
-    baseName = project.name + '-' + platform
+    baseName = project.name + '_all_' + fileSuffix
     from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
     with jar
 }
+*/
 
-//jLink provides more advanced artifact. By this tool, dependencies are copied beside and the whole image is ready to use.
+// for separated jars. all dependencies go to "libs" dir
 /*
-Please notice that, if you are willing to provide the artifact for another platform, you must download its specific jdk
-you have to run jLink with option:
---module-path $TARGET_JDK/jmods
+task copyDepsBeside(type: Jar) {
 
-after executing jLink task, {app}/build/image/bin/{app-name} is your image entry point
-* */
-jlink {
-    options = ['--strip-debug', '--compress', '2', '--no-header-files', '--no-man-pages']
-    launcher {
-        name = 'Run_This_File'
+    // Keep jar clean:
+    exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA', 'META-INF/*.MF'
+
+    manifest {
+        attributes(
+                'Main-Class': mainClassName,
+                'Class-Path': configurations.runtimeClasspath.collect { "libs/$it.name" }.join(' ')
+        )
+    }
+    baseName = project.name + 'beside_all_' + fileSuffix
+    with jar
+    doLast {
+        File libsDir = new File("$project.buildDir/libs/libs")
+        if (!libsDir.exists())
+            libsDir.mkdirs()
+        configurations.runtimeClasspath.collect {
+            if (it.isDirectory()) {
+                it
+            } else {
+                File f = new File(libsDir, it.getName())
+                if (!f.exists())
+                    Files.copy(Paths.get(it.getAbsolutePath()), Paths.get(f.getAbsolutePath()))
+            }
+        }
     }
 }
+/*
 
+//for non-modular project by jpackage tool
+/*
+runtime {
+    addOptions("--strip-debug", "--compress", "2", "--no-header-files", "--no-man-pages")
+    // targetPlatform('lin')
 
+    jpackage {
+        // Uncomment and adjust the following line if your runtime task is configured to generate images for multiple platforms
+        // targetPlatformName = "mac"
+
+        imageOptions += ['--icon', "src/main/resources/images/ic.png"]
+        installerOptions += ['--resource-dir', "src/main/resources"]
+        installerOptions += ['--vendor', 'Arash Apps']
+
+        if (currentOs.windows) {
+            installerOptions += ['--win-per-user-install', '--win-dir-chooser', '--win-menu', '--win-shortcut']
+        } else if (currentOs.linux) {
+            installerOptions += ['--linux-package-name', 'hellofx', '--linux-shortcut']
+        } else if (currentOs.macOsX) {
+            installerOptions += ['--mac-package-name', 'hellofx']
+        }
+    }
+}*/
+
+jlink {
+    addOptions("--strip-debug", "--compress", "2", "--no-header-files", "--no-man-pages")
+    // targetPlatform('lin')
+
+    jpackage {
+        // Uncomment and adjust the following line if your runtime task is configured to generate images for multiple platforms
+        // targetPlatformName = "mac"
+
+        imageOptions += ['--icon', "src/main/resources/images/ic.png"]
+        installerOptions += ['--resource-dir', "src/main/resources"]
+        installerOptions += ['--vendor', 'Arash Apps']
+
+        if (currentOs.windows) {
+            installerOptions += ['--win-per-user-install', '--win-dir-chooser', '--win-menu', '--win-shortcut']
+        } else if (currentOs.linux) {
+            installerOptions += ['--linux-package-name', 'hellofx', '--linux-shortcut']
+        } else if (currentOs.macOsX) {
+            installerOptions += ['--mac-package-name', 'hellofx']
+        }
+
+    }
+}
